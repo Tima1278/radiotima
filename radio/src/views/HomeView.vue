@@ -51,7 +51,7 @@ export default {
   },
   methods: {
     getRadios() {
-      return fetch('https://nl1.api.radio-browser.info/json/stations/search?limit=100&countrycode=IT&hidebroken=true&order=clickcount&reverse=true')
+      return fetch('https://nl1.api.radio-browser.info/json/stations/search?radio=100&countrycode=IT&hidebroken=true&order=clickcount&reverse=true')
         .then(response => {
           if (!response.ok) {
             throw new Error('Errore durante il recupero dei dati delle stazioni radio');
