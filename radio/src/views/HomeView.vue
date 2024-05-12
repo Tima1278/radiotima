@@ -6,13 +6,13 @@
         <v-card class="radio-card punk-card">
           <div class="btn-container">
             <v-btn @click="toggleFavorite(radio)" class="ma-2" color="transparent">
-              <v-icon :color="radio.isFavorite ? 'red' : 'white'" size="24">mdi-heart</v-icon>
+              <v-icon :color="radio.isFavorite? 'red' : 'white'" size="24">mdi-heart</v-icon>
             </v-btn>
           </div>
 
           <v-row justify="center">
             <v-col cols="12" class="text-center">
-              <v-img :src="radio.favicon ? radio.favicon : require('@/assets/no immage.png')" height="200" contain></v-img>
+              <v-img :src="radio.favicon? radio.favicon : require('@/assets/no immage.png')" height="200" contain></v-img>
             </v-col>
           </v-row>
 
@@ -20,7 +20,8 @@
           <v-card-actions class="d-flex justify-center">
             <v-btn @click="playRadio(radio)" color="transparent" class="ma-2">
               <div class="play-button-container">
-                <font-awesome-icon :icon="radio.isPlaying ? 'pause' : 'play'" style="color: white;" />
+                <font-awesome-icon v-if="radio.isPlaying" icon="pause" style="color: white;" />
+                <font-awesome-icon v-else icon="play" style="color: white;" />
               </div>
             </v-btn>
             <img v-if="isPlaying(radio)" src="@/assets/soundwave.gif" class="loading-gif" alt="Caricamento GIF">
@@ -49,84 +50,116 @@ export default {
       isAudioReady: false,
     }
   },
+  
   methods: {
     getRadios() {
       return fetch('https://nl1.api.radio-browser.info/json/stations/search?radio=100&countrycode=IT&hidebroken=true&order=clickcount&reverse=true')
-        .then(response => {
+  .then(response => {
           if (!response.ok) {
             throw new Error('Errore durante il recupero dei dati delle stazioni radio');
           }
           return response.json();
         })
-        .then(data => {
+  .then(data => {
           this.radios = data.map(radio => ({
-            ...radio,
-            isFavorite: false
+      ...radio,
+            isFavorite: false,
+            isPlaying: false
           }));
         })
-        .catch(error => {
+  .catch(error => {
           console.error('Si è verificato un errore durante il recupero dei dati:', error);
         });
     },
     playRadio(radio) {
-  if (!this.audio) {
-    console.error('L\'oggetto audio non è stato inizializzato correttamente.');
-    return;
-  }
-  if (this.currentPlayingRadio && this.currentPlayingRadio !== radio) {
-    if (this.audio.hls) {
-      this.audio.hls.destroy();
-    }
-    this.audio.pause();
-    // Reset the icon of the previously playing radio to play
-    this.currentPlayingRadio.isPlaying = false;
-  }
-  if (this.isPlaying(radio)) {
-    // If the same radio is clicked again, pause it
-    this.audio.pause();
-    radio.isPlaying = false; // Set isPlaying to false
-    this.currentPlayingRadio = null;
-  } else {
-    // Start playing the selected radio
-    if (radio.url.endsWith('.m3u8')) {
+      if (!this.audio) {
+      console.error('L\'oggetto audio non è stato inizializzato correttamente.');
+      return;
+      }
+
+      // Stop currently playing radio
+      if (this.currentPlayingRadio && this.currentPlayingRadio !== radio) {
+      if (this.audio.hls) {
+        this.audio.hls.destroy();
+      }
+      this.audio.pause();
+      this.currentPlayingRadio.isPlaying = false;
+      } else if (this.currentPlayingRadio === radio && radio.isPlaying) {
+      // Stop the radio if the play button is clicked again
+      if (this.audio.hls) {
+        this.audio.hls.destroy();
+      }
+      this.audio.pause();
+      radio.isPlaying = false;
+      this.currentPlayingRadio = null;
+      return;
+      }
+
+      // Start playing selected radio
+      this.radios.forEach(r => r.isPlaying = false);
+      radio.isPlaying = true;
+      this.currentPlayingRadio = radio;
+
+      if (radio.url.endsWith('.m3u8')) {
       if (Hls.isSupported()) {
         this.audio.hls = new Hls();
         this.audio.hls.loadSource(radio.url);
         this.audio.hls.attachMedia(this.audio);
         this.audio.addEventListener('canplaythrough', () => {
-          this.audio.play();
-          radio.isPlaying = true; // Set isPlaying to true
-          this.currentPlayingRadio = radio;
+        this.audio.play();
+        this.updatePlayingStatus(); // Aggiorna lo stato di riproduzione
         }, false);
       } else if (this.audio.canPlayType('application/x-mpegURL')) {
         this.audio.src = radio.url;
         this.audio.addEventListener('canplaythrough', () => {
-          this.audio.play();
-          radio.isPlaying = true; // Set isPlaying to true
-          this.currentPlayingRadio = radio;
+        this.audio.play();
+        this.updatePlayingStatus(); // Aggiorna lo stato di riproduzione
         }, false);
       } else {
         console.error('Il browser non supporta la riproduzione di file m3u8.');
       }
-    } else {
+      } else {
       this.audio.src = radio.url;
       this.audio.addEventListener('canplaythrough', () => {
         this.audio.play();
-        radio.isPlaying = true; // Set isPlaying to true
-        this.currentPlayingRadio = radio;
+        this.updatePlayingStatus(); // Aggiorna lo stato di riproduzione
       }, false);
-    }
-  }
-},
+      }
+    },
+
     isPlaying(radio) {
       return this.currentPlayingRadio === radio;
     },
     toggleFavorite(radio) {
-      radio.isFavorite = !radio.isFavorite;
+      radio.isFavorite =!radio.isFavorite;
+      const favorites = JSON.stringify(this.radios.map(r => ({...r, isFavorite: r.isFavorite})));
+      localStorage.setItem('favorites', favorites);
+    },
+    getRadiosFromLocalStorage() {
+      const savedFavorites = localStorage.getItem('favorites');
+      if (savedFavorites) {
+        this.radios = JSON.parse(savedFavorites).map(radio => ({
+      ...radio,
+          isFavorite: radio.isFavorite,
+          isPlaying: false
+        }));
+      }
+    },
+    updatePlayingStatus() {
+      this.radios.forEach(radio => {
+        if (radio.isPlaying) {
+          // Qui puoi aggiornare l'interfaccia utente basandoti sul nuovo stato di riproduzione
+          // Ad esempio, potresti voler aggiornare l'icona di riproduzione/pausa per ogni radio
+        }
+      });
     }
   },
   created() {
-    this.getRadios();
+    if (!localStorage.getItem('favorites')) {
+      this.getRadios();
+    } else {
+      this.getRadiosFromLocalStorage();
+    }
   },
   components: {
     FontAwesomeIcon
@@ -146,9 +179,8 @@ export default {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  height: 350px; /* Aumenta l'altezza di 10 pixel */
+  height: 350px;
 }
-
 
 .loading-gif {
   width: 170px;
