@@ -12,7 +12,8 @@
 
           <v-row justify="center">
             <v-col cols="12" class="text-center">
-              <v-img :src="radio.favicon ? radio.favicon : require('@/assets/no immage.png')" height="200" contain></v-img>
+              <v-img :src="radio.favicon ? radio.favicon : require('@/assets/no immage.png')" height="200"
+                contain></v-img>
             </v-col>
           </v-row>
 
@@ -57,22 +58,16 @@ export default {
       }
     },
     toggleFavorite(radio) {
-      radio.isFavorite = !radio.isFavorite;
-
-      // Aggiorna i preferiti nel localStorage
-      const favorites = JSON.parse(localStorage.getItem('favorites')) || [];
-      if (radio.isFavorite) {
-        favorites.push(radio);
+      const index = this.favoriteRadios.findIndex(favRadio => favRadio.changeuuid === radio.changeuuid);
+      if (index !== -1) {
+        this.favoriteRadios.splice(index, 1);
+        radio.isFavorite = false;
       } else {
-        const index = favorites.findIndex(fav => fav.id === radio.id);
-        if (index !== -1) {
-          favorites.splice(index, 1);
-        }
+        this.favoriteRadios.push(radio);
+        radio.isFavorite = true;
       }
-      localStorage.setItem('favorites', JSON.stringify(favorites));
 
-      // Aggiorna la lista dei preferiti nel componente
-      this.favoriteRadios = favorites;
+      localStorage.setItem('favorites', JSON.stringify(this.favoriteRadios));
     },
     playRadio(radio) {
       if (!this.audio) {

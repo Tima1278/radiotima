@@ -145,7 +145,7 @@ export default {
       if (savedFavorites) {
         const favorites = JSON.parse(savedFavorites);
         favorites.forEach(favorite => {
-          const radio = this.radios.find(radio => radio.id === favorite.id);
+          const radio = this.radios.find(radio => radio.changeuuid === favorite.changeuuid);
           if (radio) {
             radio.isFavorite = true;
           }
